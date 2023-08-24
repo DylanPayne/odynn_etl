@@ -1,4 +1,4 @@
-Odynn - sql queries to create datafile
+--Odynn - sql queries to create datafile
 
 ---- CREATE CLEAN TABLES ---- 
 ---- cash ---- 
