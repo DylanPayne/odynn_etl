@@ -411,13 +411,15 @@ ORDER BY 1,2,3,4,5;
 ---- ### CREATE CLEAN TABLES ### ---- 
 
 -- 7. Latest Templates for 40 in-sample hotel branches
+DROP TABLE IF EXISTS hotel_sample_40_templates;
+CREATE TABLE hotel_sample_40_templates as
 WITH deduped as (
 	SELECT *
 	FROM (
 		SELECT *,
-			ROW_NUMBER() OVER(PARTITION BY hotel_id ORDER BY created_at DESC) as rn
+			ROW_NUMBER() OVER(PARTITION BY hotel_group, hotel_id ORDER BY created_at DESC) as rn
 		FROM hotel_templates
-		WHERE hotel_name is NOT NULL
+		WHERE hotel_group is not null and hotel_id is not null AND hotel_name is NOT NULL
 	) a
 	WHERE rn = 1
 ),
@@ -433,15 +435,15 @@ map_table as (
 hotel_40 as (
 	SELECT distinct hotel_group, hotel_name_key
 	FROM hotel_sample_40
-),
-sample_hotel_ids as (
-	SELECT distinct a.hotel_id, b.hotel_name_key
+)
+,sample_hotel_ids as (
+	SELECT distinct a.hotel_group, a.hotel_id, b.hotel_name_key
 	FROM map_table a
-	INNER JOIN hotel_40 b USING (hotel_name_key, hotel_group)
+	INNER JOIN hotel_40 b USING (hotel_group, hotel_name_key)
 )
 SELECT hotel_group, hotel_id, hotel_name_key, hotel_name, description, address, city, slug_city, state, state_code, latitude, longitude, currency, review_count, review_rating, country, country_code, telephone, chain_rating
 FROM deduped a
-INNER JOIN sample_hotel_ids USING (hotel_id)
+INNER JOIN sample_hotel_ids USING (hotel_group, hotel_id)
 ORDER BY hotel_group, hotel_name_key;
 
 -- #### QA for ingestion ### --
