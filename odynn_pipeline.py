@@ -233,7 +233,8 @@ collection_names_all = [
 
 input_uri = 'mongodb://data_reader:READ%23%23%24Awayzasdf33d!@44.212.136.220:27017/award_shopper?readPreference=primary&ssl=false&directConnection=true&authMechanism=DEFAULT&authSource=award_shopper'
 hotel_keys = odynn_pipeline_cash.hotel_keys # Pulls list of original 48 new-york hotel keys for data sample    
-postgresql_uri = 'postgresql://postgres:sa^5jv@ezf@localhost:5432/odynn'
+postgresql_uri = 'postgresql://postgres:sa^5jv@ezf@localhost:5432/odynn' # outdated
+postgresql_uri = 'postgresql://postgres:sa^5jv3o9ezf@localhost:5432/odynn'
 
 ####### INPUTS #######:
 
