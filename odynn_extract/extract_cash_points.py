@@ -17,6 +17,7 @@ logger = logging.getLogger(__name__)
 
 def main(prefix, chunk_cap):  
     chunk_size = 50000 # 500k for fastest processing
+    mongo_database = 'award_shopper'
     
     script_name = os.path.basename(os.path.abspath(__file__))
     run_name = os.path.splitext(script_name)[0]
@@ -54,7 +55,7 @@ def main(prefix, chunk_cap):
                         # Extract data from mongoDB
                         dt = datetime.utcnow # datetime of data extraction, in UTC
                         query = query_cash_points(input_table, start_id)
-                        df = extract_mongodb(input_table, query)
+                        df = extract_mongodb(mongo_database, input_table, query, logger)
                         
                         if df is None: # Break loop if df is empty
                             break
@@ -73,7 +74,7 @@ def main(prefix, chunk_cap):
                             break
                         
                         # Insert into postgres with helper columns 
-                        helper_columns = {'run_id':run_id, 'dt':dt, 'chunk_n':chunk_n}
+                        helper_columns = {'run_id':run_id, 'hotel_group':hotel_group, 'chunk_n':chunk_n, 'dt':dt}
                         postgres_conn.insert_postgres(clean_df, output_table, logger, helper_columns)
                         
                         rows_inserted += len(clean_df)

@@ -3,12 +3,33 @@ import pandas as pd
 from sqlalchemy import create_engine, text
 from dotenv import load_dotenv
 from datetime import datetime
+from pymongo import MongoClient
 
 load_dotenv() # lond environmental variables
 
-def extract_mongodb(input_table, query):
-    df = 1
-    return df
+def extract_mongodb(mongo_database, input_table, query, logger):
+    env_str = "MONGO_URI"
+    uri = os.environ.get(env_str)
+    
+    hotel_group = input_table.split('_')[-1]
+    
+    try:
+        with MongoClient(uri) as client:
+            collection = client[mongo_database][input_table]        
+            
+            # Initialize 'last_id' and 'total_rows'
+            last_id, total_rows = starting_id
+
+            while True and (row_limit is None or total_rows < row_limit): # Loop until break or row_limit exceeded
+                query = gen_query(last_id, hotel_keys_needed, hotel_filter, archived_flag, hotel_group)
+                cursor = collection.find(query).sort([("_id", -1)]).limit(chunk_size)
+                
+                df = pd.DataFrame()
+                df = pd.DataFrame(list(cursor))
+        return df
+    except Exception as e:
+        logger.error(f'Error extracting from {input_table} via {query}')
+    
 
 
 class PostgresInserter:
