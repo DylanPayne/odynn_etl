@@ -6,7 +6,7 @@ from sqlalchemy import create_engine, text
 from datetime import datetime
 from dotenv import load_dotenv
 
-from utils.settings_cash_points import input_output_settings, clean_cash, clean_points
+from utils.settings_cash_points import input_output_dict, query_cash_points, clean_cash, clean_points
 from utils.table_utils import PostgresInserter, extract_mongodb
 
 log_filename = 'log/'+ os.path.splitext(os.path.basename(__file__))[0] + ".log"
@@ -24,12 +24,12 @@ def main(prefix, chunk_cap):
     # Insert row into run table, generate run_id
     try:
         with PostgresInserter as postgres_conn:
-            postgres_conn.start_run(run_name, prefix, logger)
+            run_id = postgres_conn.start_run(run_name, prefix, logger)
     except Exception as e:
         logger.error(f'Error starting run')
     
     # First processes cash, then points
-    for table_type in input_output_settings:
+    for table_type in input_output_dict:
         output_table = f"{prefix}{table_type['output_table']['table_name']}"
         columns_dict = table_type['output_table']['table_columns']
         
@@ -45,14 +45,23 @@ def main(prefix, chunk_cap):
             
             # initialize chunking helper variables
             start_id = None
-            n = 0
+            chunk_n = 0
+            rows_extracted = 0
+            rows_inserted = 0
             try:
                 with PostgresInserter as postgres_conn:        
-                    while chunk_cap is None or n < chunk_cap:   # Loop until break or chunk cap exceeded
-                        df = extract_mongodb(input_table, start_id)
+                    while chunk_cap is None or chunk_n < chunk_cap:   # Loop until break or chunk cap exceeded
+                        # Extract data from mongoDB
+                        dt = datetime.utcnow # datetime of data extraction, in UTC
+                        query = query_cash_points(input_table, start_id)
+                        df = extract_mongodb(input_table, query)
                         
                         if df is None: # Break loop if df is empty
                             break
+                        
+                        # Set start_id to the final row's _id. Next chunk will filter by _id < last_id
+                        start_id = df.iloc[-1]['_id']
+                        rows_extracted += len(df)
                         
                         # Clean data, depending on cash or points
                         if table_type == 'cash':
@@ -63,9 +72,15 @@ def main(prefix, chunk_cap):
                         if clean_df is None: # Break loop if clean_df is empty
                             break
                         
-                        postgres_conn.insert_postgresql(clean_df)
+                        # Insert into postgres with helper columns 
+                        helper_columns = {'run_id':run_id, 'dt':dt, 'chunk_n':chunk_n}
+                        postgres_conn.insert_postgres(clean_df, output_table, logger, helper_columns)
+                        
+                        rows_inserted += len(clean_df)
+                        chunk_n += 1 # increment chunk_n
+            
             except Exception as e:
-                logger.error(f"Error piping data from {input_table} into {output_table} for ")
+                logger.error(f"Error piping data from {input_table} into {output_table} for {e} ")
             
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Scrape and save REI data")

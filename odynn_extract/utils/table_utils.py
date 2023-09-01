@@ -6,8 +6,10 @@ from datetime import datetime
 
 load_dotenv() # lond environmental variables
 
-def extract_mongodb(input_table, start_id):
-    a=1    
+def extract_mongodb(input_table, query):
+    df = 1
+    return df
+
 
 class PostgresInserter:
     def __init__(self):
@@ -38,7 +40,7 @@ class PostgresInserter:
             print(f"Error executing query {create_table_query} {e}")
             return None
             
-    def insert_to_sql(self, df: pd.DataFrame, table_name: str, logger, helper_columns=None):
+    def insert_postgres(self, df: pd.DataFrame, table_name: str, logger, helper_columns=None):
         if df is None:
             logger.warning(f"No data to save to {table_name}. Skipping.")
             return
