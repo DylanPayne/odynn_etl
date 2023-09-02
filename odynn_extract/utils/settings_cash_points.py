@@ -1,4 +1,5 @@
 from bson.objectid import ObjectId
+import pandas as pd
 
 collection_names_all = [
     'hotel_calendar_cash_hilton',
@@ -95,3 +96,36 @@ def query_cash_points(input_table, start_id):
         query['_id'] = {'$lt': ObjectId(start_id)}
         
     return query
+
+column_order_cash = 1
+
+def clean_cash(df, helper_columns, logger):
+     # Check if cash_value exists
+    if 'cash_value' in df.columns:
+        # Keep only rows where cash_value exists as a dictionary
+        df = df[df['cash_value'].apply(lambda x: isinstance(x, dict))]
+        # Add helper columns
+        for column, value in helper_columns.items():
+            df[column] = value
+
+        # Reorder and drop unneeded columns
+        df = df.reindex(columns=column_order_cash)
+        # Avoid dupe 'currecny' col after flattening cash_value dictionary
+        df = df.drop(columns=['currency'])
+        
+        if df.empty:
+            df = None
+            return None
+        # Convert date to datetime and ignore errors
+        df['date'] = pd.to_datetime(df['date'], errors='coerce')
+        # Drop rows where 'date' is NaT
+        df = df.dropna(subset=['date'])
+        
+        
+        return df
+    else:
+        return None # Return None if 'cash_value' is not a column (which breaks the outer loop)
+
+def clean_points(df, helper_columns, logger):
+    
+    return clean_df

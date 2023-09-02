@@ -7,29 +7,19 @@ from pymongo import MongoClient
 
 load_dotenv() # lond environmental variables
 
-def extract_mongodb(mongo_database, input_table, query, logger):
+def extract_mongodb(mongo_database, input_table, query, chunk_size, sort_column, sort_order, logger):
     env_str = "MONGO_URI"
     uri = os.environ.get(env_str)
     
-    hotel_group = input_table.split('_')[-1]
-    
     try:
         with MongoClient(uri) as client:
-            collection = client[mongo_database][input_table]        
-            
-            # Initialize 'last_id' and 'total_rows'
-            last_id, total_rows = starting_id
-
-            while True and (row_limit is None or total_rows < row_limit): # Loop until break or row_limit exceeded
-                query = gen_query(last_id, hotel_keys_needed, hotel_filter, archived_flag, hotel_group)
-                cursor = collection.find(query).sort([("_id", -1)]).limit(chunk_size)
-                
-                df = pd.DataFrame()
-                df = pd.DataFrame(list(cursor))
+            collection = client[mongo_database][input_table]
+            cursor = collection.find(query).sort([(sort_column, sort_order)]).limit(chunk_size)
+            df = pd.DataFrame(list(cursor))
         return df
     except Exception as e:
-        logger.error(f'Error extracting from {input_table} via {query}')
-    
+        logger.error(f'Error extracting from {input_table} via {query} sorted {sort_column} by {sort_order}. {e}')
+        return None
 
 
 class PostgresInserter:

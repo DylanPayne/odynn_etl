@@ -18,6 +18,8 @@ logger = logging.getLogger(__name__)
 def main(prefix, chunk_cap):  
     chunk_size = 50000 # 500k for fastest processing
     mongo_database = 'award_shopper'
+    sort_column = '_id'
+    sort_order = -1
     
     script_name = os.path.basename(os.path.abspath(__file__))
     run_name = os.path.splitext(script_name)[0]
@@ -49,19 +51,20 @@ def main(prefix, chunk_cap):
             chunk_n = 0
             rows_extracted = 0
             rows_inserted = 0
+            hotel_group = input_table.split('_')[-1]
             try:
                 with PostgresInserter as postgres_conn:        
                     while chunk_cap is None or chunk_n < chunk_cap:   # Loop until break or chunk cap exceeded
                         # Extract data from mongoDB
                         dt = datetime.utcnow # datetime of data extraction, in UTC
                         query = query_cash_points(input_table, start_id)
-                        df = extract_mongodb(mongo_database, input_table, query, logger)
+                        df = extract_mongodb(mongo_database, input_table, query, chunk_size, sort_column, sort_order, logger)
                         
                         if df is None: # Break loop if df is empty
                             break
                         
                         # Set start_id to the final row's _id. Next chunk will filter by _id < last_id
-                        start_id = df.iloc[-1]['_id']
+                        start_id = df.iloc[-1][sort_column]
                         rows_extracted += len(df)
                         
                         # Clean data, depending on cash or points
