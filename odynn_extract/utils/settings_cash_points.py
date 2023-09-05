@@ -1,5 +1,6 @@
 from bson.objectid import ObjectId
 import pandas as pd
+import numpy as np
 
 collection_names_all = [
     'hotel_calendar_cash_hilton',
@@ -45,7 +46,10 @@ input_output_dict = {
                 'award_category': 'TEXT',
                 'hotel_name_key': 'TEXT',
                 'hotel_id': 'TEXT',
-                '_id': 'TEXT'
+                '_id': 'TEXT',
+                'run_id': 'TEXT',
+                'chunk_n': 'INTEGER',
+                'extract_dt': 'DATE'
             }
         }
     },
@@ -72,7 +76,10 @@ input_output_dict = {
                 'points_level': 'TEXT',
                 'hotel_name_key': 'TEXT',
                 'hotel_id': 'TEXT',
-                '_id': 'TEXT'
+                '_id': 'TEXT',
+                'run_id': 'TEXT',
+                'chunk_n': 'INTEGER',
+                'extract_dt': 'DATE'
             }
         }
     }
@@ -97,22 +104,15 @@ def query_cash_points(input_table, start_id):
         
     return query
 
-column_order_cash = 1
-
-def clean_cash(df, helper_columns, logger):
+def clean_cash(df, column_order, logger):
      # Check if cash_value exists
     try:
         if 'cash_value' in df.columns:
             # Keep only rows where cash_value exists as a dictionary
             df = df[df['cash_value'].apply(lambda x: isinstance(x, dict))]
-            # Add helper columns
-            for column, value in helper_columns.items():
-                df[column] = value
 
             # Reorder and drop unneeded columns
-            df = df.reindex(columns=column_order_cash)
-            # Avoid dupe 'currecny' col after flattening cash_value dictionary
-            df = df.drop(columns=['currency'])
+            df = df.reindex(columns=column_order, fill_value=np.nan)
             
             if df.empty:
                 df = None
@@ -126,6 +126,9 @@ def clean_cash(df, helper_columns, logger):
             # Flatten 'cash_value' dictionary into distinct columns ('records' specifies the format)
             df = pd.json_normalize(df.to_dict('records'))
             
+            # Avoid creating dupe 'currency' col from renaming flattened cash_value dictionary
+            df = df.drop(columns=['currency'])
+            
             # Rename flattened columns
             df = df.rename(columns={'cash_value.amount': 'cash_value', 'cash_value.currency': 'currency'})
             
@@ -133,8 +136,6 @@ def clean_cash(df, helper_columns, logger):
             df['cash_value'] = df['cash_value'].apply(pd.to_numeric, errors='coerce')
             df['_id'] = df['_id'].astype(str)
             
-            # Standardize column order
-            df = df[column_order_cash]
             return df
         
     except Exception as e:
