@@ -101,31 +101,47 @@ column_order_cash = 1
 
 def clean_cash(df, helper_columns, logger):
      # Check if cash_value exists
-    if 'cash_value' in df.columns:
-        # Keep only rows where cash_value exists as a dictionary
-        df = df[df['cash_value'].apply(lambda x: isinstance(x, dict))]
-        # Add helper columns
-        for column, value in helper_columns.items():
-            df[column] = value
+    try:
+        if 'cash_value' in df.columns:
+            # Keep only rows where cash_value exists as a dictionary
+            df = df[df['cash_value'].apply(lambda x: isinstance(x, dict))]
+            # Add helper columns
+            for column, value in helper_columns.items():
+                df[column] = value
 
-        # Reorder and drop unneeded columns
-        df = df.reindex(columns=column_order_cash)
-        # Avoid dupe 'currecny' col after flattening cash_value dictionary
-        df = df.drop(columns=['currency'])
+            # Reorder and drop unneeded columns
+            df = df.reindex(columns=column_order_cash)
+            # Avoid dupe 'currecny' col after flattening cash_value dictionary
+            df = df.drop(columns=['currency'])
+            
+            if df.empty:
+                df = None
+                return None
+            
+            # Convert date to datetime and ignore errors
+            df['date'] = pd.to_datetime(df['date'], errors='coerce')
+            # Drop rows where 'date' is NaT
+            df = df.dropna(subset=['date'])
+            
+            # Flatten 'cash_value' dictionary into distinct columns ('records' specifies the format)
+            df = pd.json_normalize(df.to_dict('records'))
+            
+            # Rename flattened columns
+            df = df.rename(columns={'cash_value.amount': 'cash_value', 'cash_value.currency': 'currency'})
+            
+            # Convert data types for insertion for postgres insertion
+            df['cash_value'] = df['cash_value'].apply(pd.to_numeric, errors='coerce')
+            df['_id'] = df['_id'].astype(str)
+            
+            # Standardize column order
+            df = df[column_order_cash]
+            return df
         
-        if df.empty:
-            df = None
-            return None
-        # Convert date to datetime and ignore errors
-        df['date'] = pd.to_datetime(df['date'], errors='coerce')
-        # Drop rows where 'date' is NaT
-        df = df.dropna(subset=['date'])
-        
-        
-        return df
-    else:
-        return None # Return None if 'cash_value' is not a column (which breaks the outer loop)
+    except Exception as e:
+        logger.error(f'Error parsing cash {df} with {helper_columns}. {e}')
+        return None
 
 def clean_points(df, helper_columns, logger):
-    
+    clean_df = None
+    print("clean_points function not finished")
     return clean_df
