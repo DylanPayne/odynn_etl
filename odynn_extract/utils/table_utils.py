@@ -48,7 +48,7 @@ class PostgresInserter:
                 connection.execute(text(create_table_query))
             return list(columns_dict.keys()) # Return list of column names
         except Exception as e:
-            print(f"Error executing query {create_table_query} {e}")
+            logger.info(f"Error executing query {create_table_query} {e}")
             return None
             
     def insert_postgres(self, df: pd.DataFrame, table_name: str, logger, helper_columns=None, column_order=None):
@@ -71,14 +71,25 @@ class PostgresInserter:
         except Exception as e:
             logger.error(f"Error saving data to {table_name}: \n{traceback.format_exc()}")
             
-    def start_run(self, run_name, prefix, logger):
+    def start_run(self, run_name, prefix, logger, details=None):
         run_dt = datetime.utcnow()
         table_name = f"{prefix}run"
-        insert_query = text(f"INSERT INTO {table_name} (run_dt, run_name) VALUES (:run_dt, :run_name) RETURNING run_id;")
+        
+        columns_dict = {
+            'run_id':'SERIAL PRIMARY KEY',
+            'run_name': 'TEXT',
+            'details': 'TEXT',
+            'run_dt': 'TIMESTAMP',
+            }
+        
+         # create run table, if doesn't already exist
+        self.create_table(table_name, columns_dict, logger)
+        
+        insert_query = text(f"INSERT INTO {table_name} (run_name, details, run_dt) VALUES (:run_name, :details, :run_dt) RETURNING run_id;")
         try:
-            with self.engine.connect() as connection:
+            with self.engine.connect() as connection:  # reuse connection passed in
                 connection.execution_options(isolation_level="AUTOCOMMIT") # automatically commit insertions
-                result = connection.execute(insert_query, {'run_dt': run_dt, 'run_name': run_name})
+                result = connection.execute(insert_query, {'run_dt': run_dt, 'run_name': run_name, 'details': details})
                 run_id = result.fetchone()[0]
                 return run_id
         except Exception as e:

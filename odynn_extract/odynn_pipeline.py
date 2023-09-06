@@ -88,7 +88,6 @@ def extract_data_in_chunks(input_uri, collection_name, column_order, chunk_size,
                 
                 df = pd.DataFrame()
                 df = pd.DataFrame(list(cursor))
-                # breakpoint()
                 
                 if '_cash_' in collection_name:       # If extracting 'cash' data
                     if 'cash_value' in df.columns:  # Check if cash_value exists (early 'points' scrapes were saved to cash tables)

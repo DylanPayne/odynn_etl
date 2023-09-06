@@ -24,7 +24,7 @@ logging.basicConfig(filename=log_filename, level=logging.INFO,
 logger = logging.getLogger(__name__)
 
 def main(prefix, chunk_cap):  
-    chunk_size = 50000 # 500k for fastest processing
+    chunk_size = 5000 # 500k for fastest processing
     mongo_database = 'award_shopper'
     sort_column = '_id'
     sort_order = -1
@@ -35,11 +35,9 @@ def main(prefix, chunk_cap):
     # Insert row into run table, generate run_id
     run_id = None # initialize run_id for start_run failures
     try:
-        breakpoint()
-        postgres_conn = PostgresInserter()
-        #with PostgresInserter() as postgres_conn:
-        with postgres_conn as postgres_conn:
-            run_id = postgres_conn.start_run(run_name, prefix, logger)
+        with PostgresInserter() as postgres_conn:
+            run_details = f'chunk_cap = {chunk_cap}, chunk_size = {chunk_size}'
+            run_id = postgres_conn.start_run(run_name, prefix, logger, details=run_details)
     except Exception as e:
         logger.error(f'Error starting run. {e}')
     
@@ -56,7 +54,6 @@ def main(prefix, chunk_cap):
             logger.error(f"Error creating {output_table} with columns_dict:\n{columns_dict}\n{e}")
         
         # Extract data from input tables, starting with "live" tables
-        breakpoint()
         for input_table in table_type_dict['input_tables']:
             
             # initialize chunking helper variables
@@ -66,37 +63,35 @@ def main(prefix, chunk_cap):
             rows_inserted = 0
             hotel_group = input_table.split('_')[-1]
             try:
-                with PostgresInserter() as postgres_conn:        
-                    while chunk_cap is None or chunk_n < chunk_cap:   # Loop until break or chunk cap exceeded
-                        # Extract data from mongoDB
-                        extract_dt = datetime.utcnow # datetime of data extraction, in UTC
-                        query = query_cash_points(input_table, start_id)
-                        df = extract_mongodb(mongo_database, input_table, query, chunk_size, sort_column, sort_order, logger)
-                        
-                        if df is None: # Break loop if df is empty
-                            break
-                        
-                        # Set start_id to the final row's _id. Next chunk will filter by _id < last_id
-                        start_id = df.iloc[-1][sort_column]
-                        rows_extracted += len(df)
-                        
-                        breakpoint()
-                        # Clean data and add helper columns, depending on cash or points
-                        helper_columns = {'run_id':run_id, 'hotel_group':hotel_group, 'chunk_n':chunk_n, 'extract_dt':extract_dt}
-                        if table_type == 'cash':
-                            clean_df = clean_cash(df, column_order, logger)
-                        else:
-                            clean_df = clean_points(df, column_order, logger)
-                        
-                        if clean_df is None: # Break loop if clean_df is empty
-                            break
-                        
-                        # Insert into postgres with helper columns 
-                        postgres_conn.insert_postgres(clean_df, output_table, logger, helper_columns, column_order)
-                        
-                        rows_inserted += len(clean_df)
-                        chunk_n += 1 # increment chunk_n
-            
+                while chunk_cap is None or chunk_n < chunk_cap:   # Loop until break or chunk cap exceeded
+                    # Extract data from mongoDB
+                    extract_dt = datetime.utcnow() # datetime of data extraction, in UTC
+                    query = query_cash_points(input_table, start_id)
+                    df = extract_mongodb(mongo_database, input_table, query, chunk_size, sort_column, sort_order, logger)
+                    
+                    if df is None: # Break loop if df is empty
+                        break
+                    
+                    # Set start_id to the final row's _id. Next chunk will filter by _id < last_id
+                    start_id = df.iloc[-1][sort_column]
+                    rows_extracted += len(df)
+                    
+                    # Clean data and add helper columns, depending on cash or points
+                    helper_columns = {'run_id':run_id, 'hotel_group':hotel_group, 'chunk_n':chunk_n, 'extract_dt':extract_dt}
+                    if table_type == 'cash':
+                        clean_df = clean_cash(df, column_order, logger)
+                    else:
+                        clean_df = clean_points(df, column_order, logger)
+                    
+                    if clean_df is None: # Break loop if clean_df is empty
+                        break
+                    
+                    # Insert into postgres with helper columns 
+                    postgres_conn.insert_postgres(clean_df, output_table, logger, helper_columns, column_order)
+                    
+                    rows_inserted += len(clean_df)
+                    chunk_n += 1 # increment chunk_n
+        
             except Exception as e:
                 logger.error(f"Error piping data from {input_table} into {output_table} for {e} ")
             

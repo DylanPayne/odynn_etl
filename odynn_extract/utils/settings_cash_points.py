@@ -49,7 +49,7 @@ input_output_dict = {
                 '_id': 'TEXT',
                 'run_id': 'TEXT',
                 'chunk_n': 'INTEGER',
-                'extract_dt': 'DATE'
+                'extract_dt': 'TIMESTAMP'
             }
         }
     },
@@ -79,7 +79,7 @@ input_output_dict = {
                 '_id': 'TEXT',
                 'run_id': 'TEXT',
                 'chunk_n': 'INTEGER',
-                'extract_dt': 'DATE'
+                'extract_dt': 'TIMESTAMP'
             }
         }
     }
@@ -108,11 +108,11 @@ def clean_cash(df, column_order, logger):
      # Check if cash_value exists
     try:
         if 'cash_value' in df.columns:
+            # Reorder and drop unneeded columns for speed
+            df = df.reindex(columns=column_order, fill_value=np.nan)
+
             # Keep only rows where cash_value exists as a dictionary
             df = df[df['cash_value'].apply(lambda x: isinstance(x, dict))]
-
-            # Reorder and drop unneeded columns
-            df = df.reindex(columns=column_order, fill_value=np.nan)
             
             if df.empty:
                 df = None
@@ -132,17 +132,41 @@ def clean_cash(df, column_order, logger):
             # Rename flattened columns
             df = df.rename(columns={'cash_value.amount': 'cash_value', 'cash_value.currency': 'currency'})
             
-            # Convert data types for insertion for postgres insertion
+            # Convert cash_value to numeric type
             df['cash_value'] = df['cash_value'].apply(pd.to_numeric, errors='coerce')
+            
+            # Convert data types for insertion for postgres insertion
             df['_id'] = df['_id'].astype(str)
             
             return df
         
     except Exception as e:
-        logger.error(f'Error parsing cash {df} with {helper_columns}. {e}')
+        logger.error(f'Error parsing cash {df} with column_order = {column_order}. {e}')
         return None
 
-def clean_points(df, helper_columns, logger):
-    clean_df = None
-    print("clean_points function not finished")
-    return clean_df
+def clean_points(df, column_order, logger):
+    try:
+        if 'points' in df.columns:  # only try to process the chunk if 'points' column exists
+            # Reorder and drop unneeded columns for speed
+            df = df.reindex(columns=column_order, fill_value=np.nan)
+            
+            # Keep only rows where points exists and is not null
+            df = df[df['points'].notnull()]
+            
+            if df.empty:
+                df = None
+                return None
+            
+            # Convert date to datetime and ignore errors
+            df['date'] = pd.to_datetime(df['date'], errors='coerce')
+            # Drop rows where 'date' is NaT
+            df = df.dropna(subset=['date'])
+            
+            # Convert data types for postgres insertion
+            df['_id'] = df['_id'].astype(str)
+            
+            return df
+        
+    except Exception as e:
+        logger.error(f'Error parsing points {df} with column_order = {column_order}. {e}')
+        return None
