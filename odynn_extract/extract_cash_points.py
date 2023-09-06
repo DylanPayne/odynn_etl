@@ -24,7 +24,7 @@ logging.basicConfig(filename=log_filename, level=logging.INFO,
 logger = logging.getLogger(__name__)
 
 def main(prefix, chunk_cap):  
-    chunk_size = 5000 # 500k for fastest processing
+    chunk_size = 500000 # 500k for fastest processing
     mongo_database = 'award_shopper'
     sort_column = '_id'
     sort_order = -1
