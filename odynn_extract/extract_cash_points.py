@@ -72,7 +72,7 @@ def main(prefix, chunk_cap):
             hotel_group = input_table.split('_')[-1]
             try:
                 while chunk_cap is None or chunk_n < chunk_cap:   # Loop until break or chunk cap exceeded
-                    if start_id is not None and start_id < min_id: # Stop condition based on min_id
+                    if start_id is not None and start_id <= min_id: # Stop condition based on min_id
                         logger.info(f'Reached minimum _id {min_id}. Exiting loop.')
                         break
                     
