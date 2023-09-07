@@ -89,14 +89,11 @@ def query_cash_points(input_table, start_id):
     is_archived = True if input_table.split("_")[0] == 'archived' else False
     hotel_group = input_table.split('_')[-1]
     
-    # Handle Hyatt edge case for new york
-    if not(is_archived) and hotel_group == 'hyatt':
-        new_york_str = 'New York'
+    # Handle Hyatt edge cases for new-york
+    if hotel_group == 'hyatt':
+        query = {'city': {'$in': ['new-york', 'New York']}}
     else:
-        new_york_str = 'new-york'
-    
-    # Initialize query to restrict to new-york
-    query = {'city': new_york_str}
+        query = {'city': 'new-york'}
     
     # If last_id is defined, append an _id filter to the query dictionary
     if start_id:
@@ -138,6 +135,7 @@ def clean_cash(df, column_order, logger):
             # Convert data types for insertion for postgres insertion
             df['_id'] = df['_id'].astype(str)
             
+            logger.info(f'Cleaned df to {len(df)} rows')
             return df
         
     except Exception as e:
@@ -165,6 +163,7 @@ def clean_points(df, column_order, logger):
             # Convert data types for postgres insertion
             df['_id'] = df['_id'].astype(str)
             
+            logger.info(f'Cleaned df to {len(df)} rows')
             return df
         
     except Exception as e:

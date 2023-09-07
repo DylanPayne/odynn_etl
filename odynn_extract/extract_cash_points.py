@@ -1,7 +1,5 @@
-import os, logging, argparse
+import os, logging, argparse, traceback
 import pandas as pd
-from pymongo import MongoClient
-from bson.objectid import ObjectId
 from sqlalchemy import create_engine, text
 from datetime import datetime
 from dotenv import load_dotenv
@@ -19,7 +17,8 @@ if not os.path.exists(log_directory):
 # Setup the log filename and configure the logger
 log_filename = os.path.join(log_directory, os.path.splitext(os.path.basename(__file__))[0] + ".log")
 logging.basicConfig(filename=log_filename, level=logging.INFO,
-                    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+                    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+                    datefmt='%Y-%m-%d %H:%M:%S')
 
 logger = logging.getLogger(__name__)
 
@@ -38,8 +37,10 @@ def main(prefix, chunk_cap):
         with PostgresInserter() as postgres_conn:
             run_details = f'chunk_cap = {chunk_cap}, chunk_size = {chunk_size}'
             run_id = postgres_conn.start_run(run_name, prefix, logger, details=run_details)
+            logger.info(f'\nStarting run #{run_id}. prefix={prefix} chunk_size={chunk_size} chunk_cap={chunk_cap}')
     except Exception as e:
         logger.error(f'Error starting run. {e}')
+        logger.error({traceback.format_exc()})
     
     # First processes cash, then points
     for table_type, table_type_dict in input_output_dict.items():
@@ -52,6 +53,7 @@ def main(prefix, chunk_cap):
                 column_order = postgres_conn.create_table(output_table, columns_dict, logger)
         except Exception as e:
             logger.error(f"Error creating {output_table} with columns_dict:\n{columns_dict}\n{e}")
+            logger.error({traceback.format_exc()})
         
         # Extract data from input tables, starting with "live" tables
         for input_table in table_type_dict['input_tables']:
@@ -69,10 +71,12 @@ def main(prefix, chunk_cap):
                     query = query_cash_points(input_table, start_id)
                     df = extract_mongodb(mongo_database, input_table, query, chunk_size, sort_column, sort_order, logger)
                     
-                    if df is None: # Break loop if df is empty
+                    if df is None or df.empty or sort_column not in df.columns: # Break loop if df is None or empty or missing sort_columns
+                        logger.error(f'df empty, none, or missing sort_column = {sort_column} {df.columns} {df}')
                         break
                     
                     # Set start_id to the final row's _id. Next chunk will filter by _id < last_id
+                    prior_id = start_id # For info debugging messages
                     start_id = df.iloc[-1][sort_column]
                     rows_extracted += len(df)
                     
@@ -83,7 +87,7 @@ def main(prefix, chunk_cap):
                     else:
                         clean_df = clean_points(df, column_order, logger)
                     
-                    if clean_df is None: # Break loop if clean_df is empty
+                    if clean_df is None or clean_df.empty: # Break loop if clean_df is None or empty
                         break
                     
                     # Insert into postgres with helper columns 
@@ -91,9 +95,11 @@ def main(prefix, chunk_cap):
                     
                     rows_inserted += len(clean_df)
                     chunk_n += 1 # increment chunk_n
+                    logger.info(f'From {input_table} extracted {rows_extracted}, inserted {rows_inserted} from {prior_id} - {start_id}')
         
             except Exception as e:
-                logger.error(f"Error piping data from {input_table} into {output_table} for {e} ")
+                logger.error(f"Error piping data from {input_table} into {output_table}. {e} ")
+                logger.error({traceback.format_exc()})
             
 # python odynn_extract/extract_cash_points.py --prefix test_ --chunk_cap 2            
 if __name__ == "__main__":
@@ -103,5 +109,3 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     main(args.prefix, args.chunk_cap)
-    
-    

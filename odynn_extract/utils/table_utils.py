@@ -16,6 +16,10 @@ def extract_mongodb(mongo_database, input_table, query, chunk_size, sort_column,
             collection = client[mongo_database][input_table]
             cursor = collection.find(query).sort([(sort_column, sort_order)]).limit(chunk_size)
             df = pd.DataFrame(list(cursor))
+            if sort_column not in df.columns:   # Validate that sort column exists in df, if not, return None
+                logger.error(f"Column {sort_column} not found in DataFrame. {df.columns}")
+                return None
+        logger.info(f'Extracted {len(df)} rows from {input_table} via {query}')
         return df
     except Exception as e:
         logger.error(f'Error extracting from {input_table} via {query} sorted {sort_column} by {sort_order}. {e}')
@@ -67,7 +71,7 @@ class PostgresInserter:
         # Save DataFrame to PostgreSQL table
         try:
             df.to_sql(table_name, self.engine, index=False, if_exists='append')
-            logger.info(f"Saved {len(df)} rows to {table_name}")
+            logger.info(f"Saved {len(df)} rows to {table_name} w/ helper_cols: {helper_columns}")
         except Exception as e:
             logger.error(f"Error saving data to {table_name}: \n{traceback.format_exc()}")
             
