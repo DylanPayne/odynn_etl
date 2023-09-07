@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 
 from log.log_config import log_config
 
-hotel_templates_table_tuple = ('hotel_templates', {
+hotel_template_table_tuple = ('hotel_template_raw', {
         'hotel_group':'TEXT',
         'hotel_name': 'TEXT', # name (reserved word in postgresql)
         'hotel_id': 'TEXT',
@@ -64,7 +64,7 @@ def main(prefix):
     
     # Create output tables in postgresql if needed
     create_table(run_table_tuple, prefix, logger)
-    columns_list, output_table_name = create_table(hotel_templates_table_tuple, prefix, logger)
+    columns_list, output_table_name = create_table(hotel_template_table_tuple, prefix, logger)
     
     # Generate run_id by inserting row into 'run' table
     run_id = start_run(run_name, prefix, logger)

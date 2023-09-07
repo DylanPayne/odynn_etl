@@ -26,13 +26,13 @@ input_output_dict = {
     'cash': {
         'input_tables': {
             'hotel_calendar_cash_hilton',
-            'hotel_calendar_cash_hyatt',
-            'hotel_calendar_cash_ihg',
-            'hotel_calendar_cash_marriott',
+            # 'hotel_calendar_cash_hyatt',
+            # 'hotel_calendar_cash_ihg',
+            # 'hotel_calendar_cash_marriott',
             'archived_hotel_calendar_cash_hilton',
-            'archived_hotel_calendar_cash_hyatt',
-            'archived_hotel_calendar_cash_ihg',
-            'archived_hotel_calendar_cash_marriott',       
+            # 'archived_hotel_calendar_cash_hyatt',
+            # 'archived_hotel_calendar_cash_ihg',
+            # 'archived_hotel_calendar_cash_marriott',       
             },
         'output_table': {
             'table_name': 'hotel_cash',
@@ -56,13 +56,13 @@ input_output_dict = {
     'points': {
         'input_tables': {
             'hotel_calendar_hilton',
-            'hotel_calendar_hyatt',
-            'hotel_calendar_ihg',
+            # 'hotel_calendar_hyatt',
+            # 'hotel_calendar_ihg',
             'hotel_calendar_marriott', 
             'archived_hotel_calendar_hilton',
-            'archived_hotel_calendar_hyatt',
-            'archived_hotel_calendar_ihg',
-            'archived_hotel_calendar_marriott', 
+            # 'archived_hotel_calendar_hyatt',
+            # 'archived_hotel_calendar_ihg',
+            # 'archived_hotel_calendar_marriott', 
             },
         'output_table': {
             'table_name': 'hotel_points',

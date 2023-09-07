@@ -57,6 +57,12 @@ def main(prefix, chunk_cap):
         
         # Extract data from input tables, starting with "live" tables
         for input_table in table_type_dict['input_tables']:
+            # Find the minimum _id for records with city = 'new-york'
+            min_query = {'city': {'$in': ['new-york', 'New York']}}
+            min_id = extract_mongodb(mongo_database, input_table, min_query, 1, sort_column, 1, logger)
+            if not min_id.empty:
+                min_id = min_id.iloc[0][sort_column]
+                logger.info(f"min_id = {min_id} for {output_table}. min_query = {min_query}")
             
             # initialize chunking helper variables
             start_id = None
@@ -66,13 +72,20 @@ def main(prefix, chunk_cap):
             hotel_group = input_table.split('_')[-1]
             try:
                 while chunk_cap is None or chunk_n < chunk_cap:   # Loop until break or chunk cap exceeded
+                    if start_id is not None and start_id < min_id: # Stop condition based on min_id
+                        logger.info(f'Reached minimum _id {min_id}. Exiting loop.')
+                        break
+                    
                     # Extract data from mongoDB
                     extract_dt = datetime.utcnow() # datetime of data extraction, in UTC
                     query = query_cash_points(input_table, start_id)
                     df = extract_mongodb(mongo_database, input_table, query, chunk_size, sort_column, sort_order, logger)
                     
-                    if df is None or df.empty or sort_column not in df.columns: # Break loop if df is None or empty or missing sort_columns
-                        logger.error(f'df empty, none, or missing sort_column = {sort_column} {df.columns} {df}')
+                    if df is None or df.empty:
+                        logger.error(f'df empty or none')
+                        break
+                    elif sort_column not in df.columns: # Break loop if df is None or empty or missing sort_columns
+                        logger.error(f'df missing sort_column = {sort_column} {df.columns} {df}')
                         break
                     
                     # Set start_id to the final row's _id. Next chunk will filter by _id < last_id

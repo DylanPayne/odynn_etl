@@ -4,13 +4,21 @@
 ---- 1. cash ---- 
 DROP TABLE IF EXISTS hotel_cash;
 CREATE TABLE hotel_cash AS
-WITH cte as (
+WITH new_york as(
+	SELECT hotel_group, hotel_id
+	FROM hotel_templates
+	where slug_city = 'new-york'
+)
+,cte as (
 	SELECT *, date(created_at) as date_booked,
 		row_number() OVER (PARTITION BY hotel_group, hotel_name_key, date(date), date(created_at) ORDER BY created_at desc) as rn
-	FROM hotel_cash_raw
+	FROM hotel_cash_raw a
+	INNER JOIN new_york b
+	USING (hotel_group, hotel_id)
 	WHERE currency = 'USD' and cash_value > 1
 		AND date(created_at) <= date(date) -- remove booking dates in the past
 		AND NULLIF(hotel_name_key,'') IS NOT NULL
+	
 )
 SELECT hotel_group, hotel_name_key, hotel_id, date(date) as date_stay, date_booked, cash_value as cash, currency, created_at, _id
 FROM cte
@@ -19,10 +27,17 @@ WHERE rn = 1;
 ---- 2. points ---- 
 DROP TABLE IF EXISTS hotel_points;
 CREATE TABLE hotel_points AS
-WITH cte as (
+WITH new_york as(
+	SELECT hotel_group, hotel_id
+	FROM hotel_templates
+	where slug_city = 'new-york'
+),
+cte as (
 	SELECT *, date(created_at) as date_booked,
 		row_number() OVER (PARTITION BY hotel_group, hotel_name_key, date(date), date(created_at) ORDER BY created_at desc) as rn
-	FROM hotel_points_raw
+	FROM hotel_points_raw a
+	INNER JOIN new_york b
+	USING (hotel_group, hotel_id)
 	WHERE points > 1
 		AND date(created_at) <= date(date) -- remove booking dates in the past
 		AND NULLIF(hotel_name_key,'') IS NOT NULL
@@ -408,9 +423,18 @@ WHERE date_scraped BETWEEN '2022-12-01' AND '2023-07-31'
 	'ihg-kimpton-hotel-theta'
 )
 ORDER BY 1,2,3,4,5;
----- ### CREATE CLEAN TABLES ### ---- 
 
--- 7. Latest Templates for 40 in-sample hotel branches
+-- 7. Dedupe templates to latest observation per hotel_id (currently not needed, since extracting from  "current" table)
+SELECT *
+FROM (
+	SELECT *,
+		ROW_NUMBER() OVER(PARTITION BY hotel_group, hotel_id ORDER BY created_at DESC) as rn
+	FROM hotel_templates
+	WHERE hotel_group is not null and hotel_id is not null AND hotel_name is NOT NULL
+) a
+WHERE rn = 1
+
+-- 8. Latest Templates for 40 in-sample hotel branches
 DROP TABLE IF EXISTS hotel_sample_40_templates;
 CREATE TABLE hotel_sample_40_templates as
 WITH deduped as (
@@ -445,6 +469,8 @@ SELECT hotel_group, hotel_id, hotel_name_key, hotel_name, description, address, 
 FROM deduped a
 INNER JOIN sample_hotel_ids USING (hotel_group, hotel_id)
 ORDER BY hotel_group, hotel_name_key;
+
+---- ### CREATE CLEAN TABLES ### ---- 
 
 -- #### QA for ingestion ### --
 
