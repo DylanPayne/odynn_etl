@@ -4,7 +4,7 @@ from pymongo import MongoClient
 from itertools import islice
 from datetime import datetime
 
-# Helper function to slice an iteraator into batches
+# Helper function to slice an iterator into batches
 def batch_iterator(iterator, batch_size):
     while True:
         batch = list(islice(iterator, batch_size))
