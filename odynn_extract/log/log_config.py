@@ -1,6 +1,6 @@
 import logging, os
 
-def log_config(log_file,logger_name='CentralLogger'):
+def log_config(script_filename, logger_name='CentralLogger'):
     logger = logging.getLogger(logger_name)
     logger.setLevel(logging.INFO) # Set logger level to info
     logging.getLogger('sqlalchemy.engine').setLevel(logging.ERROR)
@@ -9,7 +9,8 @@ def log_config(log_file,logger_name='CentralLogger'):
     
     # Get the directory where this log_config.py file is located
     log_dir = os.path.dirname(os.path.abspath(__file__))
-    full_log_path = os.path.join(log_dir, log_file)
+    log_filename = script_filename.split('.')[0] + '.log'
+    full_log_path = os.path.join(log_dir, log_filename)
     print(f"Log file will be saved at: {full_log_path}") # DEBUG
     
     # Check if a FileHandler already exists, if not, create one

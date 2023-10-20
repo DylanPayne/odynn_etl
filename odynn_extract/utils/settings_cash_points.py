@@ -1,38 +1,22 @@
 from bson.objectid import ObjectId
+import logging, os
 import pandas as pd
 import numpy as np
-
-collection_names_all = [
-    'hotel_calendar_cash_hilton',
-    'hotel_calendar_cash_hyatt',
-    'hotel_calendar_cash_ihg',
-    'hotel_calendar_cash_marriott',
-    'archived_hotel_calendar_cash_hilton',
-    'archived_hotel_calendar_cash_hyatt',
-    'archived_hotel_calendar_cash_ihg',
-    'archived_hotel_calendar_cash_marriott', 
-    
-    'hotel_calendar_hilton',
-    'hotel_calendar_hyatt',
-    'hotel_calendar_ihg',
-    'hotel_calendar_marriott', 
-    'archived_hotel_calendar_hilton',
-    'archived_hotel_calendar_hyatt',
-    'archived_hotel_calendar_ihg',
-    'archived_hotel_calendar_marriott', 
-]
 
 input_output_dict = {
     'cash': {
         'input_tables': {
-            'hotel_calendar_cash_hilton',
+            # 'hotel_calendar_cash_hilton',
             # 'hotel_calendar_cash_hyatt',
             # 'hotel_calendar_cash_ihg',
             # 'hotel_calendar_cash_marriott',
-            'archived_hotel_calendar_cash_hilton',
+            # 'archived_hotel_calendar_cash_hilton',
             # 'archived_hotel_calendar_cash_hyatt',
             # 'archived_hotel_calendar_cash_ihg',
-            # 'archived_hotel_calendar_cash_marriott',       
+            # 'archived_hotel_calendar_cash_marriott',   
+            'hotel_calendar_cash_accor',   
+            'archived_hotel_calendar_cash_accor',
+            'archived_hotel_calendar_cash_choice',
             },
         'output_table': {
             'table_name': 'hotel_cash',
@@ -48,6 +32,7 @@ input_output_dict = {
                 'hotel_id': 'TEXT',
                 '_id': 'TEXT',
                 'run_id': 'TEXT',
+                'input_table': 'TEXT',
                 'chunk_n': 'INTEGER',
                 'extract_dt': 'TIMESTAMP'
             }
@@ -55,14 +40,15 @@ input_output_dict = {
     },
     'points': {
         'input_tables': {
-            'hotel_calendar_hilton',
+            # 'hotel_calendar_hilton',
             # 'hotel_calendar_hyatt',
             # 'hotel_calendar_ihg',
-            'hotel_calendar_marriott', 
-            'archived_hotel_calendar_hilton',
+            # 'hotel_calendar_marriott', 
+            # 'archived_hotel_calendar_hilton',
             # 'archived_hotel_calendar_hyatt',
             # 'archived_hotel_calendar_ihg',
-            # 'archived_hotel_calendar_marriott', 
+            # 'archived_hotel_calendar_marriott',
+            'archived_hotel_calendar_choice', 
             },
         'output_table': {
             'table_name': 'hotel_points',
@@ -78,6 +64,7 @@ input_output_dict = {
                 'hotel_id': 'TEXT',
                 '_id': 'TEXT',
                 'run_id': 'TEXT',
+                'input_table': 'TEXT',
                 'chunk_n': 'INTEGER',
                 'extract_dt': 'TIMESTAMP'
             }
@@ -86,14 +73,15 @@ input_output_dict = {
 }
 
 def query_cash_points(input_table, start_id):
-    is_archived = True if input_table.split("_")[0] == 'archived' else False
+    # is_archived = True if input_table.split("_")[0] == 'archived' else False
     hotel_group = input_table.split('_')[-1]
     
-    # Handle Hyatt edge cases for new-york
-    if hotel_group == 'hyatt':
-        query = {'city': {'$in': ['new-york', 'New York']}}
-    else:
-        query = {'city': 'new-york'}
+    query = {}
+    # Filter for new york while handling Hyatt edge cases
+    # if hotel_group == 'hyatt':
+    #     query = {'city': {'$in': ['new-york', 'New York']}}
+    # else:
+    #     query = {'city': 'new-york'}
     
     # If last_id is defined, append an _id filter to the query dictionary
     if start_id:
@@ -135,7 +123,7 @@ def clean_cash(df, column_order, logger):
             # Convert data types for insertion for postgres insertion
             df['_id'] = df['_id'].astype(str)
             
-            logger.info(f'Cleaned df to {len(df)} rows')
+            logger.debug(f'Cleaned df to {len(df)} rows')
             return df
         
     except Exception as e:
